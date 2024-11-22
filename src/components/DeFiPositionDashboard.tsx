@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { PublicKey, Connection } from "@solana/web3.js";
+import { PublicKey, Connection, clusterApiUrl } from "@solana/web3.js";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { ArrowUpRight, ArrowDownRight, Wallet, CoinsIcon, TrendingUp, DollarSign, Percent } from "lucide-react";
 import Header from "./Header";
@@ -10,7 +10,7 @@ import { createSolanaRpc } from "@solana/web3.js";
 
 const DeFiPositionDashboard = () => {
   const provider = getProvider();
-  const connection = new Connection("https://solana-mainnet.g.alchemy.com/v2/TPPMYjQldJE06PioInOJb0mBCEsPWOVY");
+  const connection = new Connection(clusterApiUrl("mainnet-beta"));
 
   const MAIN_MARKET = new PublicKey("7u3HeHxYDLhnCoErrtycNokbQYbWGzLs6JSDqGAv5PfF");
 
