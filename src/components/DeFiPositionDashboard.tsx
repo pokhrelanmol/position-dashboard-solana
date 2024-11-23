@@ -3,24 +3,22 @@ import { PublicKey, Connection, clusterApiUrl } from "@solana/web3.js";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { ArrowUpRight, ArrowDownRight, Wallet, CoinsIcon, TrendingUp, DollarSign, Percent } from "lucide-react";
 import Header from "./Header";
-import getProvider from "@/utils/provider";
-import solanaWeb3 from "@solana/web3.js";
-import { KaminoMarket } from "@kamino-finance/klend-sdk";
-import { createSolanaRpc } from "@solana/web3.js";
+import { KaminoMarket, ObligationTypeTag } from "@kamino-finance/klend-sdk";
+import { useWallet } from "@solana/wallet-adapter-react";
+import { getLoan } from "@/utils/kaminoHelper";
 
 const DeFiPositionDashboard = () => {
-  const provider = getProvider();
-  const connection = new Connection(clusterApiUrl("mainnet-beta"));
+  const wallet = useWallet();
+  const rpc_url = import.meta.env.VITE_SOLANA_MAINNET_RPC;
+  console.log(rpc_url);
+  const connection = new Connection(rpc_url);
+  console.log(connection.getSlot());
 
   const MAIN_MARKET = new PublicKey("7u3HeHxYDLhnCoErrtycNokbQYbWGzLs6JSDqGAv5PfF");
 
   const getMarketData = async () => {
-    try {
-      const market = await KaminoMarket.load(connection, MAIN_MARKET);
-    } catch (error) {
-      console.log(error);
-    }
-    // console.log(market.reserves.map((reserve) => reserve.config.loanToValueRatio));
+    const market = await KaminoMarket.load(connection, MAIN_MARKET);
+    console.log(market.reserves.map((reserve) => reserve.config.loanToValueRatio));
   };
 
   useEffect(() => {
