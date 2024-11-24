@@ -22,7 +22,7 @@ import { Wallet } from "@coral-xyz/anchor";
  * @param marketPubkey
  */
 export async function getMarket({ connection, marketPubkey }: MarketArgs) {
-  const market = await KaminoMarket.load(connection, marketPubkey, DEFAULT_RECENT_SLOT_DURATION_MS);
+  const market = await KaminoMarket.load(connection, marketPubkey);
   if (!market) {
     throw Error(`Could not load market ${marketPubkey.toString()}`);
   }

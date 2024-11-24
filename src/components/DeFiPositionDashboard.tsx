@@ -1,29 +1,51 @@
-import React, { useEffect } from "react";
+import React, { useCallback, useEffect, useMemo } from "react";
 import { PublicKey, Connection, clusterApiUrl } from "@solana/web3.js";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { ArrowUpRight, ArrowDownRight, Wallet, CoinsIcon, TrendingUp, DollarSign, Percent } from "lucide-react";
 import Header from "./Header";
-import { KaminoMarket, ObligationTypeTag } from "@kamino-finance/klend-sdk";
+import { KaminoMarket, KaminoObligation, ObligationTypeTag } from "@kamino-finance/klend-sdk";
 import { useWallet } from "@solana/wallet-adapter-react";
-import { getLoan } from "@/utils/kaminoHelper";
+import { getLoan, getMarket } from "@/utils/kaminoHelper";
 
 const DeFiPositionDashboard = () => {
   const wallet = useWallet();
   const rpc_url = import.meta.env.VITE_SOLANA_MAINNET_RPC;
-  console.log(rpc_url);
-  const connection = new Connection(rpc_url);
-  console.log(connection.getSlot());
 
-  const MAIN_MARKET = new PublicKey("7u3HeHxYDLhnCoErrtycNokbQYbWGzLs6JSDqGAv5PfF");
+  // Memoize connection and market key to prevent recreating on each render
+  const connection = useMemo(() => new Connection(rpc_url), [rpc_url]);
 
-  const getMarketData = async () => {
-    const market = await KaminoMarket.load(connection, MAIN_MARKET);
-    console.log(market.reserves.map((reserve) => reserve.config.loanToValueRatio));
-  };
+  const MAIN_MARKET = useMemo(() => new PublicKey("7u3HeHxYDLhnCoErrtycNokbQYbWGzLs6JSDqGAv5PfF"), []);
 
+  // Memoize the fetch function to prevent recreation
+  const getKaminoLoanDetails = useCallback(async () => {
+    if (!wallet.publicKey) return;
+    const args = {
+      connection,
+      marketPubkey: MAIN_MARKET,
+      obligationPubkey: wallet.publicKey,
+    };
+
+    try {
+      const loan: KaminoObligation | null = await getLoan(args);
+      console.log("Market and loan data:", { loan });
+      //TODO: populate the new state when we actually have some loans
+      // and use that instead of mockData
+      if (!loan) return;
+    } catch (error) {
+      console.error("Error fetching Kamino data:", error);
+    }
+  }, [connection, MAIN_MARKET, wallet.publicKey]);
+
+  //Render on load and when someone connect wallet or disconnect
   useEffect(() => {
-    getMarketData();
-  }, []);
+    const pollInterval = setInterval(getKaminoLoanDetails, 30000); // 30 seconds
+
+    if (wallet.publicKey) getKaminoLoanDetails();
+
+    return () => {
+      clearInterval(pollInterval);
+    };
+  }, [wallet.publicKey]);
 
   const mockData = {
     btcPrice: 67500, // Current BTC price in USD
