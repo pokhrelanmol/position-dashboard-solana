@@ -1,7 +1,17 @@
 import React, { useCallback, useEffect, useMemo } from "react";
 import { PublicKey, Connection, clusterApiUrl } from "@solana/web3.js";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { ArrowUpRight, ArrowDownRight, Wallet, CoinsIcon, TrendingUp, DollarSign, Percent } from "lucide-react";
+import {
+  ArrowUpRight,
+  ArrowDownRight,
+  Wallet,
+  CoinsIcon,
+  TrendingUp,
+  DollarSign,
+  Percent,
+  Heart,
+  HeartCrackIcon,
+} from "lucide-react";
 import Header from "./Header";
 import { KaminoMarket, KaminoObligation, ObligationTypeTag } from "@kamino-finance/klend-sdk";
 import { useWallet } from "@solana/wallet-adapter-react";
@@ -38,6 +48,7 @@ const DeFiPositionDashboard = () => {
 
   //Render on load and when someone connect wallet or disconnect
   useEffect(() => {
+    if (!wallet.publicKey) alert("Please Connect wallet");
     const pollInterval = setInterval(getKaminoLoanDetails, 30000); // 30 seconds
 
     if (wallet.publicKey) getKaminoLoanDetails();
@@ -47,18 +58,26 @@ const DeFiPositionDashboard = () => {
     };
   }, [wallet.publicKey]);
 
+  const calculateLiquidationPrice = (btcAmount: number, borrowedAmount: number, liquidationLtv: number) => {
+    return borrowedAmount / (btcAmount * (liquidationLtv / 100));
+  };
   const mockData = {
     btcPrice: 67500, // Current BTC price in USD
     kamino: {
-      btcPosition: 0.45,
-      borrowedUSDC: 5000,
-      deposit: 10000,
-      ltv: 35.5, // Loan-to-Value ratio in percentage
+      btcCollateral: 1,
+      borrowedUSDC: 30000,
+      liquidationPrice: 67000,
+      liquidationLtv: 80,
+      ltv: 44.4, // Loan-to-Value ratio in percentage
     },
     drift: {
-      position: 0.65,
+      collateral: 100,
+      collateralValue: 1000,
+      position: 10000,
+      leverage: 10,
       pnl: 1250.5,
       pnlPercentage: 12.5,
+      health: 0.5,
     },
   };
 
@@ -108,12 +127,12 @@ const DeFiPositionDashboard = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Card className="bg-white">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">BTC Position</CardTitle>
+              <CardTitle className="text-sm font-medium">BTC Collateral</CardTitle>
               <CoinsIcon className="h-4 w-4 text-gray-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{formatBTC(mockData.kamino.btcPosition)} BTC</div>
-              <div className="text-sm text-gray-500">{formatCurrency(getBTCValue(mockData.kamino.btcPosition))}</div>
+              <div className="text-2xl font-bold">{formatBTC(mockData.kamino.btcCollateral)} BTC</div>
+              <div className="text-sm text-gray-500">{formatCurrency(getBTCValue(mockData.kamino.btcCollateral))}</div>
             </CardContent>
           </Card>
 
@@ -143,12 +162,20 @@ const DeFiPositionDashboard = () => {
 
           <Card className="bg-white">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Deposit</CardTitle>
-              <TrendingUp className="h-4 w-4 text-gray-500" />
+              <CardTitle className="text-sm font-medium">Liquidation</CardTitle>
+              <DollarSign className="h-4 w-4 text-gray-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{formatCurrency(mockData.kamino.deposit)}</div>
-              <div className="text-xs text-gray-500">Total Collateral Value</div>
+              <div className="text-2xl font-bold">
+                {formatCurrency(
+                  calculateLiquidationPrice(
+                    mockData.kamino.btcCollateral,
+                    mockData.kamino.borrowedUSDC,
+                    mockData.kamino.liquidationLtv
+                  )
+                )}{" "}
+              </div>
+              <div className="text-xs text-gray-500">Liquidation Price</div>
             </CardContent>
           </Card>
         </div>
@@ -157,15 +184,31 @@ const DeFiPositionDashboard = () => {
       {/* Drift Section */}
       <div className="space-y-6">
         <h2 className="text-xl font-semibold">Drift Positions</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card className="bg-white">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Position Size</CardTitle>
+              <CardTitle className="text-sm font-medium">Collateral</CardTitle>
               <CoinsIcon className="h-4 w-4 text-gray-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{formatBTC(mockData.drift.position)} BTC</div>
-              <div className="text-sm text-gray-500">{formatCurrency(getBTCValue(mockData.drift.position))}</div>
+              <div className="text-2xl font-bold">{mockData.drift.collateral} JUPSOL</div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-500">Collateral value:</span>
+                <span>{formatCurrency(mockData.drift.collateralValue)}</span>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="bg-white">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Position Size</CardTitle>
+              <DollarSign className="h-4 w-4 text-gray-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{formatCurrency(mockData.drift.position)} USD</div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-500">Leverage</span>
+                <span>{mockData.drift.leverage}x</span>
+              </div>
             </CardContent>
           </Card>
 
@@ -186,6 +229,22 @@ const DeFiPositionDashboard = () => {
                 {mockData.drift.pnl >= 0 ? "+" : ""}
                 {mockData.drift.pnlPercentage}%
               </p>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-white">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Health</CardTitle>
+              {mockData.drift.health >= 0.5 ? (
+                <Heart fill="red" className="h-4 w-4 text-red-500" />
+              ) : (
+                <HeartCrackIcon className="h-4 w-4 text-red-500" />
+              )}
+            </CardHeader>
+            <CardContent>
+              <div className={`text-2xl font-bold ${mockData.drift.health >= 0.5 ? "text-green-600" : "text-red-600"}`}>
+                {mockData.drift.health}
+              </div>
             </CardContent>
           </Card>
         </div>
