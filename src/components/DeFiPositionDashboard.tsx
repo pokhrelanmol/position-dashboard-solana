@@ -1,44 +1,44 @@
-import { useCallback, useEffect, useMemo } from "react";
-import { PublicKey, Connection } from "@solana/web3.js";
+// import { useCallback, useEffect, useMemo } from "react";
+// import { PublicKey, Connection } from "@solana/web3.js";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { ArrowUpRight, ArrowDownRight, Wallet, CoinsIcon, DollarSign, Heart, HeartCrackIcon } from "lucide-react";
 import Header from "./Header";
-import { KaminoObligation } from "@kamino-finance/klend-sdk";
-import { useWallet } from "@solana/wallet-adapter-react";
-import { getLoan } from "@/utils/kaminoHelper";
+// import { KaminoObligation } from "@kamino-finance/klend-sdk";
+// import { useWallet } from "@solana/wallet-adapter-react";
+// import { getLoan } from "@/utils/kaminoHelper";
 
 const DeFiPositionDashboard = () => {
-  const wallet = useWallet();
+  // const wallet = useWallet();
   // const { publicKey, signTransaction, signAllTransactions } = useWallet();
 
-  const rpc_url = import.meta.env.VITE_SOLANA_MAINNET_RPC;
+  // const rpc_url = import.meta.env.VITE_SOLANA_MAINNET_RPC;
 
   // Memoize connection and market key to prevent recreating on each render
-  const connection = useMemo(() => new Connection(rpc_url), [rpc_url]);
+  // const connection = useMemo(() => new Connection(rpc_url), [rpc_url]);
 
   /* ------------------------------ KAMINO SETUP ------------------------------ */
 
-  const MAIN_MARKET = useMemo(() => new PublicKey("7u3HeHxYDLhnCoErrtycNokbQYbWGzLs6JSDqGAv5PfF"), []);
+  // const MAIN_MARKET = useMemo(() => new PublicKey("7u3HeHxYDLhnCoErrtycNokbQYbWGzLs6JSDqGAv5PfF"), []);
 
   // Memoize the fetch function to prevent recreation
-  const getKaminoLoanDetails = useCallback(async () => {
-    if (!wallet.publicKey) return;
-    const args = {
-      connection,
-      marketPubkey: MAIN_MARKET,
-      obligationPubkey: wallet.publicKey,
-    };
+  // const getKaminoLoanDetails = useCallback(async () => {
+  //   if (!wallet.publicKey) return;
+  //   const args = {
+  //     connection,
+  //     marketPubkey: MAIN_MARKET,
+  //     obligationPubkey: wallet.publicKey,
+  //   };
 
-    try {
-      const loan: KaminoObligation | null = await getLoan(args);
-      console.log("Market and loan data:", { loan });
-      //TODO: populate the new state when we actually have some loans
-      // and use that instead of mockData
-      if (!loan) return;
-    } catch (error) {
-      console.error("Error fetching Kamino data:", error);
-    }
-  }, [connection, MAIN_MARKET, wallet.publicKey]);
+  //   try {
+  //     const loan: KaminoObligation | null = await getLoan(args);
+  //     console.log("Market and loan data:", { loan });
+  //     //TODO: populate the new state when we actually have some loans
+  //     // and use that instead of mockData
+  //     if (!loan) return;
+  //   } catch (error) {
+  //     console.error("Error fetching Kamino data:", error);
+  //   }
+  // }, [connection, MAIN_MARKET, wallet.publicKey]);
 
   /* ------------------------------ DRIFT SETUP ----------------------------- */
 
@@ -60,19 +60,19 @@ const DeFiPositionDashboard = () => {
   // };
 
   //Render on load and when someone connect wallet or disconnect
-  useEffect(() => {
-    if (!wallet.publicKey) alert("Please Connect wallet");
-    const pollInterval = setInterval(getKaminoLoanDetails, 30000); // 30 seconds
+  // useEffect(() => {
+  //   if (!wallet.publicKey) alert("Please Connect wallet");
+  //   const pollInterval = setInterval(getKaminoLoanDetails, 30000); // 30 seconds
 
-    if (wallet.publicKey) {
-      getKaminoLoanDetails();
-      // initializeDrift();
-    }
+  //   if (wallet.publicKey) {
+  //     getKaminoLoanDetails();
+  //     // initializeDrift();
+  //   }
 
-    return () => {
-      clearInterval(pollInterval);
-    };
-  }, [wallet.publicKey]);
+  //   return () => {
+  //     clearInterval(pollInterval);
+  //   };
+  // }, [wallet.publicKey]);
 
   const calculateLiquidationPrice = (btcAmount: number, borrowedAmount: number, liquidationLtv: number) => {
     return borrowedAmount / (btcAmount * (liquidationLtv / 100));
