@@ -6,8 +6,6 @@ import Header from "./Header";
 import { KaminoObligation } from "@kamino-finance/klend-sdk";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { getLoan } from "@/utils/kaminoHelper";
-// import { DriftClient, IWallet } from "@drift-labs/sdk";
-// import { Transaction } from "@solana/web3.js";
 
 const DeFiPositionDashboard = () => {
   const wallet = useWallet();
