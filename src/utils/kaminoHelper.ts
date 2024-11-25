@@ -1,20 +1,17 @@
 import { LoanArgs, MarketArgs, ReserveArgs } from "./kaminoTypes";
 import {
   buildAndSendTxn,
-  buildVersionedTransaction,
   DEFAULT_RECENT_SLOT_DURATION_MS,
   KaminoMarket,
   KaminoObligation,
   KaminoReserve,
   lamportsToNumberDecimal,
-  sendAndConfirmVersionedTransaction,
 } from "@kamino-finance/klend-sdk";
 import Decimal from "decimal.js";
 import { FarmState, RewardInfo } from "@kamino-finance/farms-sdk";
 import { Scope } from "@kamino-finance/scope-sdk";
 import { aprToApy, KaminoPrices } from "@kamino-finance/kliquidity-sdk";
 import { Connection, Keypair, PublicKey, TransactionInstruction } from "@solana/web3.js";
-import { Wallet } from "@coral-xyz/anchor";
 
 /**
  * Get Kamino Lending Market
@@ -22,7 +19,7 @@ import { Wallet } from "@coral-xyz/anchor";
  * @param marketPubkey
  */
 export async function getMarket({ connection, marketPubkey }: MarketArgs) {
-  const market = await KaminoMarket.load(connection, marketPubkey);
+  const market = await KaminoMarket.load(connection, marketPubkey, DEFAULT_RECENT_SLOT_DURATION_MS);
   if (!market) {
     throw Error(`Could not load market ${marketPubkey.toString()}`);
   }

@@ -1,27 +1,17 @@
-import React, { useCallback, useEffect, useMemo } from "react";
-import { PublicKey, Connection, clusterApiUrl } from "@solana/web3.js";
+import { useCallback, useEffect, useMemo } from "react";
+import { PublicKey, Connection } from "@solana/web3.js";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import {
-  ArrowUpRight,
-  ArrowDownRight,
-  Wallet,
-  CoinsIcon,
-  TrendingUp,
-  DollarSign,
-  Percent,
-  Heart,
-  HeartCrackIcon,
-} from "lucide-react";
+import { ArrowUpRight, ArrowDownRight, Wallet, CoinsIcon, DollarSign, Heart, HeartCrackIcon } from "lucide-react";
 import Header from "./Header";
-import { KaminoMarket, KaminoObligation, ObligationTypeTag } from "@kamino-finance/klend-sdk";
-import { useWallet, WalletContextState } from "@solana/wallet-adapter-react";
-import { getLoan, getMarket } from "@/utils/kaminoHelper";
-import { DriftClient, IWallet } from "@drift-labs/sdk";
-import { Transaction } from "@solana/web3.js";
+import { KaminoObligation } from "@kamino-finance/klend-sdk";
+import { useWallet } from "@solana/wallet-adapter-react";
+import { getLoan } from "@/utils/kaminoHelper";
+// import { DriftClient, IWallet } from "@drift-labs/sdk";
+// import { Transaction } from "@solana/web3.js";
 
 const DeFiPositionDashboard = () => {
   const wallet = useWallet();
-  const { publicKey, signTransaction, signAllTransactions } = useWallet();
+  // const { publicKey, signTransaction, signAllTransactions } = useWallet();
 
   const rpc_url = import.meta.env.VITE_SOLANA_MAINNET_RPC;
 
@@ -54,22 +44,22 @@ const DeFiPositionDashboard = () => {
 
   /* ------------------------------ DRIFT SETUP ----------------------------- */
 
-  const initializeDrift = async () => {
-    const driftWallet: IWallet = {
-      publicKey: publicKey as PublicKey,
-      signTransaction: wallet.signTransaction as (tx: Transaction) => Promise<Transaction>,
-      signAllTransactions: wallet.signAllTransactions as (txs: Transaction[]) => Promise<Transaction[]>,
-      // Note: payer is optional so we don't need to implement it for web wallet
-    };
+  // const initializeDrift = async () => {
+  //   const driftWallet: IWallet = {
+  //     publicKey: publicKey as PublicKey,
+  //     signTransaction: wallet.signTransaction as (tx: Transaction) => Promise<Transaction>,
+  //     signAllTransactions: wallet.signAllTransactions as (txs: Transaction[]) => Promise<Transaction[]>,
+  //     // Note: payer is optional so we don't need to implement it for web wallet
+  //   };
 
-    const driftClient = new DriftClient({
-      connection,
-      wallet: driftWallet,
-      env: "mainnet-beta",
-    });
+  //   const driftClient = new DriftClient({
+  //     connection,
+  //     wallet: driftWallet,
+  //     env: "mainnet-beta",
+  //   });
 
-    await driftClient.subscribe();
-  };
+  //   await driftClient.subscribe();
+  // };
 
   //Render on load and when someone connect wallet or disconnect
   useEffect(() => {
@@ -109,7 +99,7 @@ const DeFiPositionDashboard = () => {
     },
   };
 
-  const formatCurrency = (value, currency = "USD") => {
+  const formatCurrency = (value: number, currency = "USD") => {
     return new Intl.NumberFormat("en-US", {
       style: "currency",
       currency: currency,
@@ -117,14 +107,14 @@ const DeFiPositionDashboard = () => {
     }).format(value);
   };
 
-  const formatBTC = (value) => {
+  const formatBTC = (value: number) => {
     return new Intl.NumberFormat("en-US", {
       minimumFractionDigits: 4,
       maximumFractionDigits: 4,
     }).format(value);
   };
 
-  const formatPercent = (value) => {
+  const formatPercent = (value: number) => {
     return new Intl.NumberFormat("en-US", {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
@@ -132,7 +122,7 @@ const DeFiPositionDashboard = () => {
   };
 
   // Calculate BTC value in USD
-  const getBTCValue = (btcAmount) => {
+  const getBTCValue = (btcAmount: number) => {
     return btcAmount * mockData.btcPrice;
   };
 
