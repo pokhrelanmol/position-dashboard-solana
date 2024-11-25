@@ -14,15 +14,21 @@ import {
 } from "lucide-react";
 import Header from "./Header";
 import { KaminoMarket, KaminoObligation, ObligationTypeTag } from "@kamino-finance/klend-sdk";
-import { useWallet } from "@solana/wallet-adapter-react";
+import { useWallet, WalletContextState } from "@solana/wallet-adapter-react";
 import { getLoan, getMarket } from "@/utils/kaminoHelper";
+import { DriftClient, IWallet } from "@drift-labs/sdk";
+import { Transaction } from "@solana/web3.js";
 
 const DeFiPositionDashboard = () => {
   const wallet = useWallet();
+  const { publicKey, signTransaction, signAllTransactions } = useWallet();
+
   const rpc_url = import.meta.env.VITE_SOLANA_MAINNET_RPC;
 
   // Memoize connection and market key to prevent recreating on each render
   const connection = useMemo(() => new Connection(rpc_url), [rpc_url]);
+
+  /* ------------------------------ KAMINO SETUP ------------------------------ */
 
   const MAIN_MARKET = useMemo(() => new PublicKey("7u3HeHxYDLhnCoErrtycNokbQYbWGzLs6JSDqGAv5PfF"), []);
 
@@ -46,12 +52,34 @@ const DeFiPositionDashboard = () => {
     }
   }, [connection, MAIN_MARKET, wallet.publicKey]);
 
+  /* ------------------------------ DRIFT SETUP ----------------------------- */
+
+  const initializeDrift = async () => {
+    const driftWallet: IWallet = {
+      publicKey: publicKey as PublicKey,
+      signTransaction: wallet.signTransaction as (tx: Transaction) => Promise<Transaction>,
+      signAllTransactions: wallet.signAllTransactions as (txs: Transaction[]) => Promise<Transaction[]>,
+      // Note: payer is optional so we don't need to implement it for web wallet
+    };
+
+    const driftClient = new DriftClient({
+      connection,
+      wallet: driftWallet,
+      env: "mainnet-beta",
+    });
+
+    await driftClient.subscribe();
+  };
+
   //Render on load and when someone connect wallet or disconnect
   useEffect(() => {
     if (!wallet.publicKey) alert("Please Connect wallet");
     const pollInterval = setInterval(getKaminoLoanDetails, 30000); // 30 seconds
 
-    if (wallet.publicKey) getKaminoLoanDetails();
+    if (wallet.publicKey) {
+      getKaminoLoanDetails();
+      // initializeDrift();
+    }
 
     return () => {
       clearInterval(pollInterval);
