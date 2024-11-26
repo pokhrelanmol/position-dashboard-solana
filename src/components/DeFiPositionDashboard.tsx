@@ -23,7 +23,7 @@ const DeFiPositionDashboard = () => {
   const wallet = useWallet();
   // const { publicKey, signTransaction, signAllTransactions } = useWallet();
 
-  const rpc_url = import.meta.env.VITE_SOLANA_MAINNET_RPC;
+  const rpc_url = "https://solana-mainnet.core.chainstack.com/ccaf735bc66da63aa80accb811211fd3";
 
   // Memoize connection and market key to prevent recreating on each render
   const connection = useMemo(() => new Connection(rpc_url), [rpc_url]);
