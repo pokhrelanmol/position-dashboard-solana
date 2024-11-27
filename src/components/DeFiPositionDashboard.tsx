@@ -7,6 +7,9 @@ import { useWallet } from "@solana/wallet-adapter-react";
 import { ObligationStats } from "@kamino-finance/klend-sdk";
 import { getMarket } from "@/utils/kaminoHelper";
 import { UserLoansArgs } from "@/utils/kaminoTypes";
+import { DriftClient, IWallet } from "@drift-labs/sdk";
+import { Transaction } from "@solana/web3.js";
+import { Skeleton } from "./ui/skeleton";
 
 type KaminoLoanDetails = {
   collateralValue: string;
@@ -17,6 +20,10 @@ type KaminoLoanDetails = {
   currentLtv: number;
   liquidationLtv: number;
 };
+
+const BTC_RESERVE = new PublicKey("HYnVhjsvU1vBKTPsXs1dWe6cJeuU8E4gjoYpmwe81KzN");
+const USDC_RESERVE = new PublicKey("D6q6wuQSrifJKZYpR1M8R4YawnLDtDsMmWM1NbBmgJ59");
+
 const DeFiPositionDashboard = () => {
   const [btcPrice, setBtcPrice] = useState<number>();
   const [kaminoLoanDetails, setKaminoLoanDetails] = useState<KaminoLoanDetails>();
@@ -57,7 +64,7 @@ const DeFiPositionDashboard = () => {
     const args = {
       connection,
       marketPubkey: MAIN_MARKET,
-      wallet: new PublicKey("CTnvAZRXgaw6DXW1fQGeRABYq2AYVBuNEZTefZ3DT8zG"),
+      wallet: wallet.publicKey,
     };
 
     try {
@@ -77,28 +84,39 @@ const DeFiPositionDashboard = () => {
         const market = await getMarket(args);
         let btcDeposit;
         // Get only a BTC deposit from first element
-        loan.deposits.forEach((deposit) => {
+
+        for (const [, deposit] of loan.deposits.entries()) {
           const reserve = market.getReserveByMint(deposit.mintAddress);
+
           if (!reserve) {
             console.error(`reserve not found for ${deposit.mintAddress.toString()}`);
-            return;
+            continue;
           }
-          const decimals = reserve!.getMintFactor();
-          btcDeposit = deposit.amount.div(decimals).toFixed(6);
-        });
-        // Get Borrow APY
+          // only BTC
+          if (reserve.address.equals(BTC_RESERVE)) {
+            const decimals = reserve.getMintFactor();
+            btcDeposit = deposit.amount.div(decimals).toFixed(6);
+            break;
+          }
+        }
+
+        // Get Borrow APY only for USDC borrow
         let borrowApy: number;
 
-        loan.borrows.forEach((borrow) => {
+        for (const [, borrow] of loan.borrows.entries()) {
           const reserve = market.getReserveByMint(borrow.mintAddress);
+
           if (!reserve) {
             console.error(`reserve not found for ${borrow.mintAddress.toString()}`);
-            return;
+            continue;
           }
+          // only for USDC
+          if (reserve.address.equals(USDC_RESERVE)) {
+            borrowApy = parseFloat(reserve.totalBorrowAPY(currentSlot).toFixed(2)) * 100;
+            break;
+          }
+        }
 
-          borrowApy = parseFloat(reserve.totalBorrowAPY(currentSlot).toFixed(2)) * 100;
-          console.log(borrowApy);
-        });
         // set state
         setKaminoLoanDetails({
           collateralValue: loanStats.userTotalCollateralDeposit.toFixed(4),
@@ -106,7 +124,7 @@ const DeFiPositionDashboard = () => {
           borrowValueWithBorrowFactor: loanStats.userTotalBorrow.toFixed(4),
           borrowAPY: borrowApy!,
           netPositionValue: loanStats.netAccountValue.toFixed(4),
-          currentLtv: parseFloat(loan!.loanToValue().toFixed(4)) * 100,
+          currentLtv: parseFloat(loan!.loanToValue().toFixed(2)) * 100,
           liquidationLtv: loanStats.liquidationLtv.toNumber() * 100,
         });
       }
@@ -117,9 +135,9 @@ const DeFiPositionDashboard = () => {
 
   /* ------------------------------ DRIFT SETUP ----------------------------- */
 
-  // const initializeDrift = async () => {
+  // const initializeDrift = useCallback(async () => {
   //   const driftWallet: IWallet = {
-  //     publicKey: publicKey as PublicKey,
+  //     publicKey: wallet.publicKey as PublicKey,
   //     signTransaction: wallet.signTransaction as (tx: Transaction) => Promise<Transaction>,
   //     signAllTransactions: wallet.signAllTransactions as (txs: Transaction[]) => Promise<Transaction[]>,
   //     // Note: payer is optional so we don't need to implement it for web wallet
@@ -132,7 +150,7 @@ const DeFiPositionDashboard = () => {
   //   });
 
   //   await driftClient.subscribe();
-  // };
+  // }, [connection, wallet.publicKey]);
 
   //Render on load and when someone connect wallet or disconnect
   useEffect(() => {
@@ -200,7 +218,15 @@ const DeFiPositionDashboard = () => {
         {!wallet.publicKey ? (
           <div>Please connect wallet</div>
         ) : !kaminoLoanDetails?.collateralValue ? (
-          <div>Loading data from SDK</div>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <Skeleton className="h-[125px] w-[250px] rounded-xl" />
+
+            <Skeleton className="h-[125px] w-[250px] rounded-xl" />
+
+            <Skeleton className="h-[125px] w-[250px] rounded-xl" />
+
+            <Skeleton className="h-[125px] w-[250px] rounded-xl" />
+          </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <Card className="bg-white">
