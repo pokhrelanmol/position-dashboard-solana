@@ -1,5 +1,5 @@
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { ArrowUpRight, ArrowDownRight, Wallet, CoinsIcon, DollarSign, Heart, HeartCrackIcon } from "lucide-react";
+import { ArrowUpRight, ArrowDownRight, WalletIcon, CoinsIcon, DollarSign, Heart, HeartCrackIcon } from "lucide-react";
 import Header from "./Header";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Connection, PublicKey } from "@solana/web3.js";
@@ -7,9 +7,12 @@ import { useWallet } from "@solana/wallet-adapter-react";
 import { ObligationStats } from "@kamino-finance/klend-sdk";
 import { getMarket } from "@/utils/kaminoHelper";
 import { UserLoansArgs } from "@/utils/kaminoTypes";
-import { DriftClient, IWallet } from "@drift-labs/sdk";
+import { DriftClient, IWallet, loadKeypair, Wallet } from "@drift-labs/sdk";
 import { Transaction } from "@solana/web3.js";
 import { Skeleton } from "./ui/skeleton";
+import { Keypair } from "@solana/web3.js";
+import bs58 from "bs58";
+import * as fs from "fs";
 
 type KaminoLoanDetails = {
   collateralValue: string;
@@ -65,6 +68,7 @@ const DeFiPositionDashboard = () => {
       connection,
       marketPubkey: MAIN_MARKET,
       wallet: wallet.publicKey,
+      // wallet: new PublicKey("Azv6MPxWSF3QPrVwuMYWhzAHomXHR21w1tWN3QFLYSmo"),
     };
 
     try {
@@ -83,6 +87,7 @@ const DeFiPositionDashboard = () => {
 
         const market = await getMarket(args);
         let btcDeposit;
+        let btcDepositValue;
         // Get only a BTC deposit from first element
 
         for (const [, deposit] of loan.deposits.entries()) {
@@ -96,9 +101,11 @@ const DeFiPositionDashboard = () => {
           if (reserve.address.equals(BTC_RESERVE)) {
             const decimals = reserve.getMintFactor();
             btcDeposit = deposit.amount.div(decimals).toFixed(6);
+            btcDepositValue = deposit.marketValueRefreshed;
             break;
           }
         }
+        if (!btcDeposit) alert("Not BTC collateral found");
 
         // Get Borrow APY only for USDC borrow
         let borrowApy: number;
@@ -117,9 +124,11 @@ const DeFiPositionDashboard = () => {
           }
         }
 
+        if (!borrowApy) alert("Not USDC borrow found");
+
         // set state
         setKaminoLoanDetails({
-          collateralValue: loanStats.userTotalCollateralDeposit.toFixed(4),
+          collateralValue: btcDepositValue?.toFixed(4) as string,
           collateralAmount: btcDeposit,
           borrowValueWithBorrowFactor: loanStats.userTotalBorrow.toFixed(4),
           borrowAPY: borrowApy!,
@@ -135,22 +144,41 @@ const DeFiPositionDashboard = () => {
 
   /* ------------------------------ DRIFT SETUP ----------------------------- */
 
-  // const initializeDrift = useCallback(async () => {
-  //   const driftWallet: IWallet = {
-  //     publicKey: wallet.publicKey as PublicKey,
-  //     signTransaction: wallet.signTransaction as (tx: Transaction) => Promise<Transaction>,
-  //     signAllTransactions: wallet.signAllTransactions as (txs: Transaction[]) => Promise<Transaction[]>,
-  //     // Note: payer is optional so we don't need to implement it for web wallet
-  //   };
+  const initializeDrift = useCallback(async () => {
+    // const keyPairFile =
+    //   "[253,82,224,218,195,189,160,192,160,249,146,80,30,100,107,88,242,32,151,93,144,70,161,251,155,107,152,231,97,42,153,196,108,4,99,111,120,199,77,145,55,100,24,121,53,243,69,215,150,66,171,9,250,45,71,71,167,225,169,70,89,98,220,175]";
+    // console.log(keyPairFile);
+    // console.log(loadKeypair(keyPairFile));
+    // Generate a new keypair
+    const keypair = Keypair.generate();
 
-  //   const driftClient = new DriftClient({
-  //     connection,
-  //     wallet: driftWallet,
-  //     env: "mainnet-beta",
-  //   });
+    // Public key
+    const publicKey = keypair.publicKey.toBase58();
 
-  //   await driftClient.subscribe();
-  // }, [connection, wallet.publicKey]);
+    // Private key (secret key)
+    const secretKey = keypair.secretKey;
+    const _wallet = new Wallet(keypair);
+
+    // console.log(wallet);
+    if (!wallet.publicKey) return;
+    const driftWallet: IWallet = {
+      publicKey: wallet.publicKey,
+      signTransaction: wallet.signTransaction as (tx: Transaction) => Promise<Transaction>,
+      signAllTransactions: wallet.signAllTransactions as (txs: Transaction[]) => Promise<Transaction[]>,
+      // Note: payer is optional so we don't need to implement it for web wallet
+    };
+    console.log(driftWallet);
+
+    const driftClient = new DriftClient({
+      connection,
+      wallet: _wallet,
+      env: "mainnet-beta",
+    });
+
+    await driftClient.subscribe();
+    // const user = await driftClient.getUser();
+    // console.log(user);
+  }, [connection, wallet.publicKey]);
 
   //Render on load and when someone connect wallet or disconnect
   useEffect(() => {
@@ -160,7 +188,7 @@ const DeFiPositionDashboard = () => {
     if (wallet.publicKey) {
       getBtcPrice();
       getKaminoLoanDetails();
-      // initializeDrift();
+      initializeDrift();
     }
 
     return () => {
@@ -215,17 +243,14 @@ const DeFiPositionDashboard = () => {
 
       <div className="space-y-6">
         <h2 className="text-xl font-semibold">Kamino Positions</h2>
+        <p className="text-sm text-gray-500">Only WBTC/USDC positions</p>
         {!wallet.publicKey ? (
           <div>Please connect wallet</div>
-        ) : !kaminoLoanDetails?.collateralValue ? (
+        ) : !kaminoLoanDetails?.collateralValue && !kaminoLoanDetails?.borrowAPY ? (
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <Skeleton className="h-[125px] w-[250px] rounded-xl" />
-
-            <Skeleton className="h-[125px] w-[250px] rounded-xl" />
-
-            <Skeleton className="h-[125px] w-[250px] rounded-xl" />
-
-            <Skeleton className="h-[125px] w-[250px] rounded-xl" />
+            {[...Array(4)].map((_, index) => (
+              <Skeleton key={index} className="h-[125px] w-[250px] rounded-xl" />
+            ))}
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -243,7 +268,7 @@ const DeFiPositionDashboard = () => {
             <Card className="bg-white">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Borrowed USDC</CardTitle>
-                <Wallet className="h-4 w-4 text-gray-500" />
+                <WalletIcon className="h-4 w-4 text-gray-500" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">${kaminoLoanDetails?.borrowValueWithBorrowFactor}</div>
