@@ -7,7 +7,7 @@ import { useWallet } from "@solana/wallet-adapter-react";
 import { ObligationStats } from "@kamino-finance/klend-sdk";
 import { getMarket } from "@/utils/kaminoHelper";
 import { UserLoansArgs } from "@/utils/kaminoTypes";
-import { DriftClient, IWallet, loadKeypair, Wallet } from "@drift-labs/sdk";
+import { BulkAccountLoader, DriftClient, initialize, IWallet, loadKeypair, Wallet } from "@drift-labs/sdk";
 import { Transaction } from "@solana/web3.js";
 import { Skeleton } from "./ui/skeleton";
 import { Keypair } from "@solana/web3.js";
@@ -28,6 +28,7 @@ const BTC_RESERVE = new PublicKey("HYnVhjsvU1vBKTPsXs1dWe6cJeuU8E4gjoYpmwe81KzN"
 const USDC_RESERVE = new PublicKey("D6q6wuQSrifJKZYpR1M8R4YawnLDtDsMmWM1NbBmgJ59");
 
 const DeFiPositionDashboard = () => {
+  const [userDontHaveBTCUSDCPosition, setUserDontHaveBTCUSDCPosition] = useState<boolean>();
   const [btcPrice, setBtcPrice] = useState<number>();
   const [kaminoLoanDetails, setKaminoLoanDetails] = useState<KaminoLoanDetails>();
   const wallet = useWallet();
@@ -67,8 +68,8 @@ const DeFiPositionDashboard = () => {
     const args = {
       connection,
       marketPubkey: MAIN_MARKET,
-      wallet: wallet.publicKey,
-      // wallet: new PublicKey("Azv6MPxWSF3QPrVwuMYWhzAHomXHR21w1tWN3QFLYSmo"),
+      // wallet: wallet.publicKey,
+      wallet: new PublicKey("3oFX1rXFGDckjTwx5Cb7vxrMWwEA2hvPrMQxJCoZcxMc"),
     };
 
     try {
@@ -105,7 +106,10 @@ const DeFiPositionDashboard = () => {
             break;
           }
         }
-        if (!btcDeposit) alert("Not BTC collateral found");
+        if (!btcDeposit) {
+          setUserDontHaveBTCUSDCPosition(true);
+          alert("Not BTC collateral found");
+        }
 
         // Get Borrow APY only for USDC borrow
         let borrowApy: number;
@@ -124,7 +128,10 @@ const DeFiPositionDashboard = () => {
           }
         }
 
-        if (!borrowApy) alert("Not USDC borrow found");
+        if (!borrowApy) {
+          setUserDontHaveBTCUSDCPosition(true);
+          alert("Not USDC borrow found");
+        }
 
         // set state
         setKaminoLoanDetails({
@@ -141,10 +148,11 @@ const DeFiPositionDashboard = () => {
       console.error("Error fetching Kamino data:", error);
     }
   }, [connection, MAIN_MARKET, wallet.publicKey]);
+  console.log(userDontHaveBTCUSDCPosition);
 
   /* ------------------------------ DRIFT SETUP ----------------------------- */
 
-  const initializeDrift = useCallback(async () => {
+  const initializeDrift = async () => {
     // const keyPairFile =
     //   "[253,82,224,218,195,189,160,192,160,249,146,80,30,100,107,88,242,32,151,93,144,70,161,251,155,107,152,231,97,42,153,196,108,4,99,111,120,199,77,145,55,100,24,121,53,243,69,215,150,66,171,9,250,45,71,71,167,225,169,70,89,98,220,175]";
     // console.log(keyPairFile);
@@ -158,6 +166,7 @@ const DeFiPositionDashboard = () => {
     // Private key (secret key)
     const secretKey = keypair.secretKey;
     const _wallet = new Wallet(keypair);
+    const bulkAccountLoader = new BulkAccountLoader(connection, "confirmed", 1000);
 
     // console.log(wallet);
     if (!wallet.publicKey) return;
@@ -165,28 +174,31 @@ const DeFiPositionDashboard = () => {
       publicKey: wallet.publicKey,
       signTransaction: wallet.signTransaction as (tx: Transaction) => Promise<Transaction>,
       signAllTransactions: wallet.signAllTransactions as (txs: Transaction[]) => Promise<Transaction[]>,
-      // Note: payer is optional so we don't need to implement it for web wallet
     };
     console.log(driftWallet);
 
     const driftClient = new DriftClient({
       connection,
-      wallet: _wallet,
       env: "mainnet-beta",
+      wallet: driftWallet,
+      perpMarketIndexes: [0],
     });
 
     await driftClient.subscribe();
+    const isSub = driftClient.isSubscribed;
+    console.log(isSub);
+
     // const user = await driftClient.getUser();
     // console.log(user);
-  }, [connection, wallet.publicKey]);
+  };
 
   //Render on load and when someone connect wallet or disconnect
   useEffect(() => {
+    getBtcPrice();
     if (!wallet.publicKey) return;
     const pollInterval = setInterval(getKaminoLoanDetails, 30000); // 30 seconds
 
     if (wallet.publicKey) {
-      getBtcPrice();
       getKaminoLoanDetails();
       initializeDrift();
     }
@@ -194,7 +206,7 @@ const DeFiPositionDashboard = () => {
     return () => {
       clearInterval(pollInterval);
     };
-  }, [wallet.publicKey]);
+  }, [wallet.publicKey, userDontHaveBTCUSDCPosition]);
 
   const calculateLiquidationPrice = (btcAmount: number, borrowedAmount: number, liquidationLtv: number) => {
     return borrowedAmount / (btcAmount * (liquidationLtv / 100));
@@ -246,12 +258,14 @@ const DeFiPositionDashboard = () => {
         <p className="text-sm text-gray-500">Only WBTC/USDC positions</p>
         {!wallet.publicKey ? (
           <div>Please connect wallet</div>
-        ) : !kaminoLoanDetails?.collateralValue && !kaminoLoanDetails?.borrowAPY ? (
+        ) : !kaminoLoanDetails?.collateralValue && !kaminoLoanDetails?.borrowAPY && !userDontHaveBTCUSDCPosition ? (
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             {[...Array(4)].map((_, index) => (
               <Skeleton key={index} className="h-[125px] w-[250px] rounded-xl" />
             ))}
           </div>
+        ) : userDontHaveBTCUSDCPosition ? (
+          <div className="text-2xl text-red-600"> You Don't have WBTC-USDC Position</div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <Card className="bg-white">
