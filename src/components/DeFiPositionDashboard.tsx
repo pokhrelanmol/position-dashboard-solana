@@ -68,8 +68,8 @@ const DeFiPositionDashboard = () => {
     const args = {
       connection,
       marketPubkey: MAIN_MARKET,
-      // wallet: wallet.publicKey,
-      wallet: new PublicKey("3oFX1rXFGDckjTwx5Cb7vxrMWwEA2hvPrMQxJCoZcxMc"),
+      wallet: wallet.publicKey,
+      // wallet: new PublicKey("3oFX1rXFGDckjTwx5Cb7vxrMWwEA2hvPrMQxJCoZcxMc"),
     };
 
     try {
@@ -148,48 +148,31 @@ const DeFiPositionDashboard = () => {
       console.error("Error fetching Kamino data:", error);
     }
   }, [connection, MAIN_MARKET, wallet.publicKey]);
-  console.log(userDontHaveBTCUSDCPosition);
 
   /* ------------------------------ DRIFT SETUP ----------------------------- */
 
   const initializeDrift = async () => {
-    // const keyPairFile =
-    //   "[253,82,224,218,195,189,160,192,160,249,146,80,30,100,107,88,242,32,151,93,144,70,161,251,155,107,152,231,97,42,153,196,108,4,99,111,120,199,77,145,55,100,24,121,53,243,69,215,150,66,171,9,250,45,71,71,167,225,169,70,89,98,220,175]";
-    // console.log(keyPairFile);
-    // console.log(loadKeypair(keyPairFile));
-    // Generate a new keypair
-    const keypair = Keypair.generate();
-
-    // Public key
-    const publicKey = keypair.publicKey.toBase58();
-
-    // Private key (secret key)
-    const secretKey = keypair.secretKey;
-    const _wallet = new Wallet(keypair);
-    const bulkAccountLoader = new BulkAccountLoader(connection, "confirmed", 1000);
-
-    // console.log(wallet);
     if (!wallet.publicKey) return;
     const driftWallet: IWallet = {
+      ...wallet,
       publicKey: wallet.publicKey,
       signTransaction: wallet.signTransaction as (tx: Transaction) => Promise<Transaction>,
       signAllTransactions: wallet.signAllTransactions as (txs: Transaction[]) => Promise<Transaction[]>,
     };
-    console.log(driftWallet);
 
     const driftClient = new DriftClient({
       connection,
       env: "mainnet-beta",
       wallet: driftWallet,
-      perpMarketIndexes: [0],
+      perpMarketIndexes: [1],
     });
 
     await driftClient.subscribe();
     const isSub = driftClient.isSubscribed;
     console.log(isSub);
 
-    // const user = await driftClient.getUser();
-    // console.log(user);
+    const user = await driftClient.getUser();
+    console.log(user);
   };
 
   //Render on load and when someone connect wallet or disconnect
