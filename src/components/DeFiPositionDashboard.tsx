@@ -1,189 +1,37 @@
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { ArrowUpRight, ArrowDownRight, WalletIcon, CoinsIcon, DollarSign, Heart, HeartCrackIcon } from "lucide-react";
 import Header from "./Header";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Connection, PublicKey } from "@solana/web3.js";
+import { useEffect, useMemo } from "react";
+import { Connection } from "@solana/web3.js";
 import { useWallet } from "@solana/wallet-adapter-react";
-import { ObligationStats } from "@kamino-finance/klend-sdk";
-import { getMarket } from "@/utils/kaminoHelper";
-import { UserLoansArgs } from "@/utils/kaminoTypes";
-import { BulkAccountLoader, DriftClient, initialize, IWallet, loadKeypair, Wallet } from "@drift-labs/sdk";
-import { Transaction } from "@solana/web3.js";
 import { Skeleton } from "./ui/skeleton";
-import { Keypair } from "@solana/web3.js";
-import bs58 from "bs58";
-import * as fs from "fs";
+import { useBtcPrice } from "@/hooks/useBtcPrice";
+import { useKaminoPosition } from "@/hooks/useKaminoPosition";
+import { useDriftPosition } from "@/hooks/useDriftPosition";
+import { formatCurrency } from "@/utils/format";
 
-type KaminoLoanDetails = {
-  collateralValue: string;
-  collateralAmount?: string;
-  borrowValueWithBorrowFactor: string;
-  borrowAPY: number;
-  netPositionValue: string;
-  currentLtv: number;
-  liquidationLtv: number;
-};
-
-const BTC_RESERVE = new PublicKey("HYnVhjsvU1vBKTPsXs1dWe6cJeuU8E4gjoYpmwe81KzN");
-const USDC_RESERVE = new PublicKey("D6q6wuQSrifJKZYpR1M8R4YawnLDtDsMmWM1NbBmgJ59");
-
+/**
+ *  @dev most of fetching of data is done using hooks
+ */
 const DeFiPositionDashboard = () => {
-  const [userDontHaveBTCUSDCPosition, setUserDontHaveBTCUSDCPosition] = useState<boolean>();
-  const [btcPrice, setBtcPrice] = useState<number>();
-  const [kaminoLoanDetails, setKaminoLoanDetails] = useState<KaminoLoanDetails>();
+  const { btcPrice, fetchBtcPrice } = useBtcPrice();
   const wallet = useWallet();
-  // const { publicKey, signTransaction, signAllTransactions } = useWallet();
-
   const rpc_url = import.meta.env.VITE_SOLANA_MAINNET_RPC;
 
   // Memoize connection and market key to prevent recreating on each render
   const connection = useMemo(() => new Connection(rpc_url), [rpc_url]);
-
-  /* ------------------------------ KAMINO SETUP ------------------------------ */
-
-  const MAIN_MARKET = useMemo(() => new PublicKey("7u3HeHxYDLhnCoErrtycNokbQYbWGzLs6JSDqGAv5PfF"), []);
-  async function getUserLoansForMarket(args: UserLoansArgs) {
-    const market = await getMarket(args);
-    return market.getAllUserObligations(args.wallet);
-  }
-
-  async function getBtcPrice() {
-    try {
-      // Using CoinGecko's free public API
-      const response = await fetch("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd");
-
-      if (!response.ok) {
-        throw new Error("Failed to fetch price");
-      }
-
-      const data = await response.json();
-      setBtcPrice(data.bitcoin.usd as number);
-    } catch (err) {
-      console.log(err);
-    }
-  }
-  // Memoize the fetch function to prevent recreation
-  const getKaminoLoanDetails = useCallback(async () => {
-    if (!wallet.publicKey) return;
-    const args = {
-      connection,
-      marketPubkey: MAIN_MARKET,
-      wallet: wallet.publicKey,
-      // wallet: new PublicKey("3oFX1rXFGDckjTwx5Cb7vxrMWwEA2hvPrMQxJCoZcxMc"),
-    };
-
-    try {
-      const loans = await getUserLoansForMarket(args);
-      //Note: This will work only for 1 loan
-      for (const loan of loans) {
-        // console.log(loan.getBorrows()[0].amount.decimalPlaces);
-        const loanAddress = loan.obligationAddress;
-        const args = {
-          connection,
-          obligationPubkey: loanAddress,
-          marketPubkey: MAIN_MARKET,
-        };
-        const currentSlot = await connection.getSlot();
-        const loanStats: ObligationStats = loan.refreshedStats;
-
-        const market = await getMarket(args);
-        let btcDeposit;
-        let btcDepositValue;
-        // Get only a BTC deposit from first element
-
-        for (const [, deposit] of loan.deposits.entries()) {
-          const reserve = market.getReserveByMint(deposit.mintAddress);
-
-          if (!reserve) {
-            console.error(`reserve not found for ${deposit.mintAddress.toString()}`);
-            continue;
-          }
-          // only BTC
-          if (reserve.address.equals(BTC_RESERVE)) {
-            const decimals = reserve.getMintFactor();
-            btcDeposit = deposit.amount.div(decimals).toFixed(6);
-            btcDepositValue = deposit.marketValueRefreshed;
-            break;
-          }
-        }
-        if (!btcDeposit) {
-          setUserDontHaveBTCUSDCPosition(true);
-          alert("Not BTC collateral found");
-        }
-
-        // Get Borrow APY only for USDC borrow
-        let borrowApy: number;
-
-        for (const [, borrow] of loan.borrows.entries()) {
-          const reserve = market.getReserveByMint(borrow.mintAddress);
-
-          if (!reserve) {
-            console.error(`reserve not found for ${borrow.mintAddress.toString()}`);
-            continue;
-          }
-          // only for USDC
-          if (reserve.address.equals(USDC_RESERVE)) {
-            borrowApy = parseFloat(reserve.totalBorrowAPY(currentSlot).toFixed(2)) * 100;
-            break;
-          }
-        }
-
-        if (!borrowApy) {
-          setUserDontHaveBTCUSDCPosition(true);
-          alert("Not USDC borrow found");
-        }
-
-        // set state
-        setKaminoLoanDetails({
-          collateralValue: btcDepositValue?.toFixed(4) as string,
-          collateralAmount: btcDeposit,
-          borrowValueWithBorrowFactor: loanStats.userTotalBorrow.toFixed(4),
-          borrowAPY: borrowApy!,
-          netPositionValue: loanStats.netAccountValue.toFixed(4),
-          currentLtv: parseFloat(loan!.loanToValue().toFixed(2)) * 100,
-          liquidationLtv: loanStats.liquidationLtv.toNumber() * 100,
-        });
-      }
-    } catch (error) {
-      console.error("Error fetching Kamino data:", error);
-    }
-  }, [connection, MAIN_MARKET, wallet.publicKey]);
-
-  /* ------------------------------ DRIFT SETUP ----------------------------- */
-
-  const initializeDrift = async () => {
-    if (!wallet.publicKey) return;
-    const driftWallet: IWallet = {
-      ...wallet,
-      publicKey: wallet.publicKey,
-      signTransaction: wallet.signTransaction as (tx: Transaction) => Promise<Transaction>,
-      signAllTransactions: wallet.signAllTransactions as (txs: Transaction[]) => Promise<Transaction[]>,
-    };
-
-    const driftClient = new DriftClient({
-      connection,
-      env: "mainnet-beta",
-      wallet: driftWallet,
-      perpMarketIndexes: [1],
-    });
-
-    await driftClient.subscribe();
-    const isSub = driftClient.isSubscribed;
-    console.log(isSub);
-
-    const user = await driftClient.getUser();
-    console.log(user);
-  };
+  const { kaminoLoanDetails, userDontHaveBTCUSDCPosition, fetchKaminoLoanDetails } = useKaminoPosition(connection);
+  const { driftClient, initializeDrift } = useDriftPosition(connection);
 
   //Render on load and when someone connect wallet or disconnect
   useEffect(() => {
-    getBtcPrice();
+    fetchBtcPrice();
     if (!wallet.publicKey) return;
-    const pollInterval = setInterval(getKaminoLoanDetails, 30000); // 30 seconds
+    const pollInterval = setInterval(fetchKaminoLoanDetails, 30000); // 30 seconds
 
     if (wallet.publicKey) {
-      getKaminoLoanDetails();
-      initializeDrift();
+      fetchKaminoLoanDetails(wallet.publicKey);
+      initializeDrift(wallet);
     }
 
     return () => {
@@ -212,13 +60,6 @@ const DeFiPositionDashboard = () => {
       pnlPercentage: 12.5,
       health: 0.5,
     },
-  };
-  const formatCurrency = (value: number, currency = "USD") => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: currency,
-      minimumFractionDigits: 2,
-    }).format(value);
   };
 
   return (
