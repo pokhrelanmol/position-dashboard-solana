@@ -35,7 +35,8 @@ export const useDriftPosition = (connection: Connection) => {
 
         const driftUser = new User({
           driftClient: client,
-          userAccountPublicKey: await client.getUserAccountPublicKey(),
+          // userAccountPublicKey: new PublicKey("CsduF2VLRkaDXqqFC9VABJop9CSTCm4P3tcFe5qRv71Q"),
+          userAccountPublicKey: pub,
           accountSubscription: {
             type: "polling",
             accountLoader: bulkAccountLoader,
@@ -53,15 +54,16 @@ export const useDriftPosition = (connection: Connection) => {
 
         // Get SOL-PERP position
         const solPosition = driftUser.getPerpPosition(0);
-        const orders = driftUser.getOrder(1);
-        console.log({ orders });
+        // const orders = driftUser.getOrder(0);
+        // console.log({ orders });
 
         // Now get the net USD value
-        const netUsdValue = driftUser.getNetUsdValue();
+        // const netUsdValue = await client.getUserAccountsForAuthority(wallet.publicKey);
+        // console.log({ netUsdValue });
 
         console.log({
           position: solPosition,
-          netValue: netUsdValue,
+          // netValue: netUsdValue,
         });
 
         console.log("Drift client and user initialized successfully");
