@@ -79,7 +79,7 @@ export const useKaminoPosition = (connection: Connection) => {
       try {
         const loans = await getUserLoansForMarket(args);
         if (!loans) {
-          setUserDontHaveBTCUSDCPosition(true);
+          //   setUserDontHaveBTCUSDCPosition(true);
           return;
         }
         if (loans?.length === 0) {
@@ -110,7 +110,6 @@ export const useKaminoPosition = (connection: Connection) => {
   };
   async function getUserLoansForMarket(args: UserLoansArgs) {
     if (!args.wallet) return;
-    console.log({ args });
     const market = await getMarket(args);
     return market.getAllUserObligations(args.wallet);
   }

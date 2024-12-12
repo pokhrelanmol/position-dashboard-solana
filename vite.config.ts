@@ -10,6 +10,15 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      "@solana/web3.js": "@solana/web3.js/lib/index.browser.esm.js",
+    },
+  },
+  build: {
+    rollupOptions: {
+      external: ["rpc-websockets/dist/lib/client/websocket.browser"],
+    },
+    commonjsOptions: {
+      transformMixedEsModules: true,
     },
   },
   css: {

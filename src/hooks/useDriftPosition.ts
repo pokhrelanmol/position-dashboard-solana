@@ -1,27 +1,31 @@
 import { useCallback, useState } from "react";
-import { Connection, PublicKey } from "@solana/web3.js";
-import { BulkAccountLoader, DriftClient, User, initialize, PerpMarkets, PerpPosition } from "@drift-labs/sdk";
+import { Connection } from "@solana/web3.js";
+import { BulkAccountLoader, DriftClient, User, calculateEntryPrice, calculatePositionPNL } from "@drift-labs/sdk";
 import { WalletContextState } from "@solana/wallet-adapter-react";
+import { formatTokenAmount } from "../utils/format";
 
 export const useDriftPosition = (connection: Connection) => {
-  const [driftClient, setDriftClient] = useState<DriftClient>();
-  const [solPerpPosition, setSolPerpPosition] = useState<PerpPosition>();
+  const [driftPosition, setDriftPosition] = useState({
+    totalDeposit: "",
+    costBasis: "",
+    positionSizeSol: "",
+    positionSizeUsd: "",
+    entryPrice: "",
+    pnl: "",
+    currentPrice: "",
+  });
 
   const initializeDrift = useCallback(
     async (wallet: WalletContextState) => {
       if (!wallet.publicKey) return;
 
       try {
-        const env = "mainnet-beta";
-        const sdkConfig = initialize({ env });
         const bulkAccountLoader = new BulkAccountLoader(connection, "confirmed", 1000);
-
-        // Initialize Drift Client - adding SOL-PERP market index (0)
         const client = new DriftClient({
           connection,
           wallet: wallet as any,
-          programID: new PublicKey(sdkConfig.DRIFT_PROGRAM_ID),
-          perpMarketIndexes: [0], // Added SOL-PERP market index
+          perpMarketIndexes: [0],
+          env: "mainnet-beta",
           accountSubscription: {
             type: "polling",
             accountLoader: bulkAccountLoader,
@@ -29,14 +33,10 @@ export const useDriftPosition = (connection: Connection) => {
         });
 
         await client.subscribe();
-        setDriftClient(client);
-        const pub = await client.getUserAccountPublicKey();
-        console.log({ pub: pub.toString() });
-
         const driftUser = new User({
           driftClient: client,
+          userAccountPublicKey: await client.getUserAccountPublicKey(),
           // userAccountPublicKey: new PublicKey("CsduF2VLRkaDXqqFC9VABJop9CSTCm4P3tcFe5qRv71Q"),
-          userAccountPublicKey: pub,
           accountSubscription: {
             type: "polling",
             accountLoader: bulkAccountLoader,
@@ -44,39 +44,49 @@ export const useDriftPosition = (connection: Connection) => {
         });
 
         const userAccountExists = await driftUser.exists();
-
         if (!userAccountExists) {
           console.log("User account does not exist - needs initialization");
           return;
         }
 
         await driftUser.subscribe();
+        await driftUser.fetchAccounts();
 
-        // Get SOL-PERP position
         const solPosition = driftUser.getPerpPosition(0);
-        // const orders = driftUser.getOrder(0);
-        // console.log({ orders });
+        if (!solPosition) {
+          console.log("No SOL-PERP position found");
+          return;
+        }
 
-        // Now get the net USD value
-        // const netUsdValue = await client.getUserAccountsForAuthority(wallet.publicKey);
-        // console.log({ netUsdValue });
+        const totalDeposit = driftUser.getUserAccount().totalDeposits.toNumber();
+        const costBasis = solPosition.quoteEntryAmount.toNumber();
+        const positionSizeSol = solPosition.baseAssetAmount.toNumber();
+        const entryPrice = calculateEntryPrice(solPosition).toNumber();
+        const oracleData = await client.getOracleDataForPerpMarket(0);
+        const currentPrice = oracleData.price.toNumber();
+        const positionSizeUsd = positionSizeSol * currentPrice;
+        const marketAccount = await client.getPerpMarketAccount(0);
+        const pnl = calculatePositionPNL(marketAccount!, solPosition, false, oracleData).toNumber();
 
-        console.log({
-          position: solPosition,
-          // netValue: netUsdValue,
+        setDriftPosition({
+          totalDeposit: formatTokenAmount(totalDeposit, 2, 1e6),
+          costBasis: formatTokenAmount(costBasis, 2, 1e6),
+          positionSizeSol: formatTokenAmount(positionSizeSol, 2, 1e9),
+          positionSizeUsd: formatTokenAmount(positionSizeUsd, 2, 1e15), // 1e9 sol + 1e6 usd
+          entryPrice: formatTokenAmount(entryPrice, 2, 1e6),
+          currentPrice: formatTokenAmount(currentPrice, 2, 1e6),
+          pnl: formatTokenAmount(pnl, 2, 1e6),
         });
-
-        console.log("Drift client and user initialized successfully");
       } catch (error) {
         console.error("Error initializing Drift client:", error);
       }
     },
     [connection]
   );
+  // console.log(driftPosition);
 
   return {
-    driftClient,
-    solPerpPosition,
     initializeDrift,
+    driftPosition,
   };
 };

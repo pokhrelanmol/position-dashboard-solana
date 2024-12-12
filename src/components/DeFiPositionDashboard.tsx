@@ -1,5 +1,5 @@
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { ArrowUpRight, ArrowDownRight, WalletIcon, CoinsIcon, DollarSign, Heart, HeartCrackIcon } from "lucide-react";
+import { ArrowUpRight, ArrowDownRight, WalletIcon, CoinsIcon, DollarSign } from "lucide-react";
 import Header from "./Header";
 import { useEffect, useMemo } from "react";
 import { Connection } from "@solana/web3.js";
@@ -21,7 +21,7 @@ const DeFiPositionDashboard = () => {
   // Memoize connection and market key to prevent recreating on each render
   const connection = useMemo(() => new Connection(rpc_url), [rpc_url]);
   const { kaminoLoanDetails, userDontHaveBTCUSDCPosition, fetchKaminoLoanDetails } = useKaminoPosition(connection);
-  const { driftClient, initializeDrift } = useDriftPosition(connection);
+  const { initializeDrift, driftPosition } = useDriftPosition(connection);
 
   //Render on load and when someone connect wallet or disconnect
   useEffect(() => {
@@ -161,17 +161,17 @@ const DeFiPositionDashboard = () => {
       {/* Drift Section */}
       <div className="space-y-6">
         <h2 className="text-xl font-semibold">Drift Positions</h2>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Card className="bg-white">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Collateral</CardTitle>
               <CoinsIcon className="h-4 w-4 text-gray-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{mockData.drift.collateral} JUPSOL</div>
+              <div className="text-2xl font-bold">{driftPosition.totalDeposit} USDC</div>
               <div className="flex items-center gap-2">
                 <span className="text-xs text-gray-500">Collateral value:</span>
-                <span>{formatCurrency(mockData.drift.collateralValue)}</span>
+                <span>${driftPosition.totalDeposit} </span>
               </div>
             </CardContent>
           </Card>
@@ -181,35 +181,36 @@ const DeFiPositionDashboard = () => {
               <DollarSign className="h-4 w-4 text-gray-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{formatCurrency(mockData.drift.position)} USD</div>
+              <div className="text-2xl font-bold">{Math.abs(Number(driftPosition.positionSizeSol))} SOL</div>
               <div className="flex items-center gap-2">
-                <span className="text-xs text-gray-500">Leverage</span>
-                <span>{mockData.drift.leverage}x</span>
+                <span className="text-xs text-gray-500">Position Value</span>
+                <span>${Math.abs(Number(driftPosition.positionSizeUsd))}</span>
               </div>
             </CardContent>
           </Card>
-
           <Card className="bg-white">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">PnL</CardTitle>
-              {mockData.drift.pnl >= 0 ? (
+              {Number(driftPosition.pnl) >= 0 ? (
                 <ArrowUpRight className="h-4 w-4 text-green-500" />
               ) : (
                 <ArrowDownRight className="h-4 w-4 text-red-500" />
               )}
             </CardHeader>
             <CardContent>
-              <div className={`text-2xl font-bold ${mockData.drift.pnl >= 0 ? "text-green-600" : "text-red-600"}`}>
-                {formatCurrency(mockData.drift.pnl)}
+              <div
+                className={`text-2xl font-bold ${Number(driftPosition.pnl) >= 0 ? "text-green-600" : "text-red-600"}`}
+              >
+                ${driftPosition.pnl}
               </div>
-              <p className={`text-sm ${mockData.drift.pnl >= 0 ? "text-green-600" : "text-red-600"}`}>
+              {/* <p className={`text-sm ${mockData.drift.pnl >= 0 ? "text-green-600" : "text-red-600"}`}>
                 {mockData.drift.pnl >= 0 ? "+" : ""}
                 {mockData.drift.pnlPercentage}%
-              </p>
+              </p> */}
             </CardContent>
           </Card>
-
-          <Card className="bg-white">
+          {/*TODO: Fetch health related data from drift */}
+          {/* <Card className="bg-white">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Health</CardTitle>
               {mockData.drift.health >= 0.5 ? (
@@ -223,7 +224,7 @@ const DeFiPositionDashboard = () => {
                 {mockData.drift.health}
               </div>
             </CardContent>
-          </Card>
+          </Card> */}
         </div>
       </div>
     </div>
