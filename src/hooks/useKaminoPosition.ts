@@ -97,7 +97,6 @@ export const useKaminoPosition = (connection: Connection) => {
         }
       } catch (error) {
         console.error("Error fetching Kamino data:", error);
-        alert("Error with kamino API	");
       }
     },
     [connection, MAIN_MARKET_KAMINO]

@@ -6,15 +6,17 @@ import { Connection } from "@solana/web3.js";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { Skeleton } from "./ui/skeleton";
 import { useBtcPrice } from "@/hooks/useBtcPrice";
-import { useKaminoPosition } from "@/hooks/useKaminoPosition";
 import { useDriftPosition } from "@/hooks/useDriftPosition";
 import { formatCurrency } from "@/utils/format";
+import { useJitoSolPrice } from "@/utils/useJitoSolPrice";
+import { useKaminoPosition } from "@/hooks/useKaminoPosition";
 
 /**
  *  @dev most of fetching of data is done using hooks
  */
 const DeFiPositionDashboard = () => {
   const { btcPrice, fetchBtcPrice } = useBtcPrice();
+  const { jitoSolPrice, fetchJitoSolPrice } = useJitoSolPrice();
   const wallet = useWallet();
   const rpc_url = import.meta.env.VITE_SOLANA_MAINNET_RPC;
 
@@ -26,6 +28,7 @@ const DeFiPositionDashboard = () => {
   //Render on load and when someone connect wallet or disconnect
   useEffect(() => {
     fetchBtcPrice();
+    fetchJitoSolPrice();
     if (!wallet.publicKey) return;
     const pollInterval = setInterval(fetchKaminoLoanDetails, 30000); // 30 seconds
 
@@ -161,56 +164,63 @@ const DeFiPositionDashboard = () => {
       {/* Drift Section */}
       <div className="space-y-6">
         <h2 className="text-xl font-semibold">Drift Positions</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card className="bg-white">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Collateral</CardTitle>
-              <CoinsIcon className="h-4 w-4 text-gray-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{driftPosition.totalDeposit} USDC</div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-gray-500">Collateral value:</span>
-                <span>${driftPosition.totalDeposit} </span>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="bg-white">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Position Size</CardTitle>
-              <DollarSign className="h-4 w-4 text-gray-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{Math.abs(Number(driftPosition.positionSizeSol))} SOL</div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-gray-500">Position Value</span>
-                <span>${Math.abs(Number(driftPosition.positionSizeUsd))}</span>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="bg-white">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">PnL</CardTitle>
-              {Number(driftPosition.pnl) >= 0 ? (
-                <ArrowUpRight className="h-4 w-4 text-green-500" />
-              ) : (
-                <ArrowDownRight className="h-4 w-4 text-red-500" />
-              )}
-            </CardHeader>
-            <CardContent>
-              <div
-                className={`text-2xl font-bold ${Number(driftPosition.pnl) >= 0 ? "text-green-600" : "text-red-600"}`}
-              >
-                ${driftPosition.pnl}
-              </div>
-              {/* <p className={`text-sm ${mockData.drift.pnl >= 0 ? "text-green-600" : "text-red-600"}`}>
+        {
+          // show loading state
+          driftPosition.totalDeposit === 0 && driftPosition.positionSizeSol === 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {[...Array(3)].map((_, index) => (
+                <Skeleton key={index} className="h-[125px] w-[250px] rounded-xl" />
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Card className="bg-white">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Collateral</CardTitle>
+                  <CoinsIcon className="h-4 w-4 text-gray-500" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{driftPosition.totalDeposit} JitoSOL</div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-gray-500">Collateral value:</span>
+                    <span>${(driftPosition.totalDeposit * jitoSolPrice!).toFixed(2)} </span>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="bg-white">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Position Size</CardTitle>
+                  <DollarSign className="h-4 w-4 text-gray-500" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{driftPosition.positionSizeSol} SOL</div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-gray-500">Position Value</span>
+                    <span>${Math.abs(driftPosition.positionSizeUsd)}</span>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="bg-white">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">PnL</CardTitle>
+                  {driftPosition.pnl >= 0 ? (
+                    <ArrowUpRight className="h-4 w-4 text-green-500" />
+                  ) : (
+                    <ArrowDownRight className="h-4 w-4 text-red-500" />
+                  )}
+                </CardHeader>
+                <CardContent>
+                  <div className={`text-2xl font-bold ${driftPosition.pnl >= 0 ? "text-green-600" : "text-red-600"}`}>
+                    ${driftPosition.pnl}
+                  </div>
+                  {/* <p className={`text-sm ${mockData.drift.pnl >= 0 ? "text-green-600" : "text-red-600"}`}>
                 {mockData.drift.pnl >= 0 ? "+" : ""}
                 {mockData.drift.pnlPercentage}%
               </p> */}
-            </CardContent>
-          </Card>
-          {/*TODO: Fetch health related data from drift */}
-          {/* <Card className="bg-white">
+                </CardContent>
+              </Card>
+              {/*TODO: Fetch health related data from drift */}
+              {/* <Card className="bg-white">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Health</CardTitle>
               {mockData.drift.health >= 0.5 ? (
@@ -225,7 +235,9 @@ const DeFiPositionDashboard = () => {
               </div>
             </CardContent>
           </Card> */}
-        </div>
+            </div>
+          )
+        }
       </div>
     </div>
   );

@@ -14,7 +14,9 @@ export const formatCurrency = (value: number | undefined, currency = "USD") => {
  * @param factor - The factor to divide the value by (e.g., 1e6 for USDC).
  * @returns The formatted number as a string.
  */
-export function formatTokenAmount(value: number, decimals: number = 2, factor: number = 1e6): string {
+export function formatTokenAmount(value: number, decimals: number = 4, factor: number = 1e6): string {
   const formattedValue = value / factor;
-  return formattedValue.toFixed(decimals);
+  const multiplier = Math.pow(10, decimals);
+  const truncatedValue = Math.floor(formattedValue * multiplier) / multiplier;
+  return truncatedValue.toFixed(decimals);
 }
