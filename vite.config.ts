@@ -15,7 +15,7 @@ export default defineConfig({
   },
   build: {
     rollupOptions: {
-      external: ["rpc-websockets/dist/lib/client", "rpc-websockets/dist/lib/client/websocket.browser"],
+      external: ["./node_modules/rpc-websockets/dist/lib/client"],
     },
     commonjsOptions: {
       transformMixedEsModules: true,

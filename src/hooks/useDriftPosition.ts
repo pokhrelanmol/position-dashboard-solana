@@ -99,8 +99,8 @@ export const useDriftPosition = (connection: Connection) => {
         setDriftPosition({
           totalDeposit: Number(formatTokenAmount(totalDepositJitoSol, 4, 1e9)),
           costBasis: Number(formatTokenAmount(costBasis, 2, 1e6)),
-          positionSizeSol: Number(formatTokenAmount(Math.abs(positionSizeSol), 4, 1e9)),
-          positionSizeUsd: Number(formatTokenAmount(positionSizeUsd, 2, 1e15)), // 1e9 sol + 1e6 usd
+          positionSizeSol: Number(formatTokenAmount(positionSizeSol, 4, 1e9)),
+          positionSizeUsd: Number(formatTokenAmount(Math.abs(positionSizeUsd), 2, 1e15)), // 1e9 sol + 1e6 usd
           entryPrice: Number(formatTokenAmount(entryPrice, 2, 1e6)),
           currentPrice: Number(formatTokenAmount(currentPrice, 2, 1e6)),
           pnl: Number(formatTokenAmount(pnl, 2, 1e6)),

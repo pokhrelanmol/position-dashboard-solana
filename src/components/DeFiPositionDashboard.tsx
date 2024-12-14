@@ -196,7 +196,7 @@ const DeFiPositionDashboard = () => {
                   <div className="text-2xl font-bold">{driftPosition.positionSizeSol} SOL</div>
                   <div className="flex items-center gap-2">
                     <span className="text-xs text-gray-500">Position Value</span>
-                    <span>${Math.abs(driftPosition.positionSizeUsd)}</span>
+                    <span>${driftPosition.positionSizeUsd}</span>
                   </div>
                 </CardContent>
               </Card>
