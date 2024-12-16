@@ -45,25 +45,6 @@ const DeFiPositionDashboard = () => {
   const calculateLiquidationPrice = (btcAmount: number, borrowedAmount: number, liquidationLtv: number) => {
     return borrowedAmount / (btcAmount * (liquidationLtv / 100));
   };
-  const mockData = {
-    btcPrice: 67500, // Current BTC price in USD
-    kamino: {
-      btcCollateral: 1,
-      borrowedUSDC: 30000,
-      liquidationPrice: 67000,
-      liquidationLtv: 80,
-      ltv: 44.4, // Loan-to-Value ratio in percentage
-    },
-    drift: {
-      collateral: 100,
-      collateralValue: 1000,
-      position: 10000,
-      leverage: 10,
-      pnl: 1250.5,
-      pnlPercentage: 12.5,
-      health: 0.5,
-    },
-  };
 
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-6">
@@ -82,7 +63,7 @@ const DeFiPositionDashboard = () => {
 
       <div className="space-y-6">
         <h2 className="text-xl font-semibold">Kamino Positions</h2>
-        <p className="text-sm text-gray-500">Only WBTC/USDC positions</p>
+        <p className="text-sm text-gray-500">Only cbBTC/USDC positions</p>
         {!wallet.publicKey ? (
           <div>Please connect wallet</div>
         ) : !kaminoLoanDetails?.collateralValue && !kaminoLoanDetails?.borrowAPY && !userDontHaveBTCUSDCPosition ? (
@@ -92,16 +73,16 @@ const DeFiPositionDashboard = () => {
             ))}
           </div>
         ) : userDontHaveBTCUSDCPosition ? (
-          <div className="text-2xl text-red-600"> You Don't have WBTC-USDC Position</div>
+          <div className="text-2xl text-red-600"> You Don't have cbBTC-USDC Position</div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <Card className="bg-white">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">BTC Collateral</CardTitle>
+                <CardTitle className="text-sm font-medium">cbBTC Collateral</CardTitle>
                 <CoinsIcon className="h-4 w-4 text-gray-500" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{kaminoLoanDetails?.collateralAmount} BTC</div>
+                <div className="text-2xl font-bold">{kaminoLoanDetails?.collateralAmount} cbBTC</div>
                 <div className="text-sm text-gray-500">${kaminoLoanDetails?.collateralValue}</div>
               </CardContent>
             </Card>
@@ -117,9 +98,9 @@ const DeFiPositionDashboard = () => {
                   <span className="text-xs text-gray-500">LTV:</span>
                   <span
                     className={`text-sm font-medium ${
-                      mockData.kamino.ltv > 75
+                      (kaminoLoanDetails?.currentLtv ?? 0) > 75
                         ? "text-red-500"
-                        : mockData.kamino.ltv > 60
+                        : (kaminoLoanDetails?.currentLtv ?? 0) > 60
                         ? "text-yellow-500"
                         : "text-green-500"
                     }`}
@@ -196,7 +177,7 @@ const DeFiPositionDashboard = () => {
                   <div className="text-2xl font-bold">{driftPosition.positionSizeSol} SOL</div>
                   <div className="flex items-center gap-2">
                     <span className="text-xs text-gray-500">Position Value</span>
-                    <span>${driftPosition.positionSizeUsd}</span>
+                    <span>${Math.abs(driftPosition.positionSizeUsd)}</span>
                   </div>
                 </CardContent>
               </Card>

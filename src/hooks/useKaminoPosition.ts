@@ -4,7 +4,8 @@ import { ObligationStats } from "@kamino-finance/klend-sdk";
 import { getMarket } from "@/utils/kaminoHelper";
 import { UserLoansArgs } from "@/utils/kaminoTypes";
 
-const BTC_RESERVE = new PublicKey("HYnVhjsvU1vBKTPsXs1dWe6cJeuU8E4gjoYpmwe81KzN");
+// const BTC_RESERVE = new PublicKey("HYnVhjsvU1vBKTPsXs1dWe6cJeuU8E4gjoYpmwe81KzN");
+const CBBTC_RESERVE = new PublicKey("37Jk2zkz23vkAYBT66HM2gaqJuNg2nYLsCreQAVt5MWK");
 const USDC_RESERVE = new PublicKey("D6q6wuQSrifJKZYpR1M8R4YawnLDtDsMmWM1NbBmgJ59");
 const MAIN_MARKET_KAMINO = new PublicKey("7u3HeHxYDLhnCoErrtycNokbQYbWGzLs6JSDqGAv5PfF");
 
@@ -30,9 +31,10 @@ export const useKaminoPosition = (connection: Connection) => {
     // Process BTC deposits
     for (const [, deposit] of loan.deposits.entries()) {
       const reserve = market.getReserveByMint(deposit.mintAddress);
+      console.log("reserve", reserve.address.toString());
       if (!reserve) continue;
 
-      if (reserve.address.equals(BTC_RESERVE)) {
+      if (reserve.address.equals(CBBTC_RESERVE)) {
         const decimals = reserve.getMintFactor();
         btcDeposit = deposit.amount.div(decimals).toFixed(6);
         btcDepositValue = deposit.marketValueRefreshed;
